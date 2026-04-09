@@ -79,7 +79,7 @@ spec:
         - name: flask-app           # Must match K8S_CONTAINER in Jenkinsfile
           # Image is updated by `kubectl set image` in the Jenkinsfile.
           # Set a real image here for manual deploys or initial setup.
-          image: docker.io/yourdockerhubusername/devops-demo:latest
+          image: docker.io/nirajbjk/devops-demo:latest
           imagePullPolicy: Always   # Always pull – ensures latest tag is fresh
 
           ports:

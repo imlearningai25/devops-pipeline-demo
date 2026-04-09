@@ -36,7 +36,7 @@ pipeline {
     // -------------------------------------------------------------------------
     environment {
         // Your DockerHub username or private registry hostname
-        REGISTRY        = "docker.io/yourdockerhubusername"
+        REGISTRY        = "docker.io/nirajbjk"
 
         // The image name without the tag
         IMAGE_NAME      = "devops-demo"
@@ -116,6 +116,9 @@ pipeline {
                 echo "==> Installing Python dependencies"
 
                 sh """
+                    python -m venv venv
+                    source venv/bin/activate
+
                     # Upgrade pip first to avoid old-version warnings
                     pip install --upgrade pip --quiet
 
