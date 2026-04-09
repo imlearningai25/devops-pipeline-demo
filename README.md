@@ -46,6 +46,7 @@ Access Jenkins at http://localhost:8080 and complete the initial setup wizard.
 ---
 
 ## Python/Docker installation inside Jinkins
+
 # Exec into your Jenkins container
 docker exec -it -u root <jenkins-container-name> bash
 
@@ -57,6 +58,7 @@ ln -s /usr/bin/python3 /usr/bin/python
 # Install Docker CLI
 apt-get update && apt-get install -y docker.io
 
+# As per the Kubectl follow Readme.md(this doc Kubectl section)
 
 
 ## Architecture
