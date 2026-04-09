@@ -140,6 +140,7 @@ pipeline {
                 echo "==> Running flake8 linter on app/"
 
                 sh """
+                    . venv/bin/activate
                     flake8 app/ \
                         --max-line-length=100 \
                         --exclude=__pycache__,*.pyc \
@@ -163,7 +164,10 @@ pipeline {
                 // Create the reports directory if it doesn't exist
                 sh "mkdir -p reports"
 
+
+
                 sh """
+                    . venv/bin/activate
                     pytest tests/ \
                         --junitxml=${TEST_REPORT} \
                         --tb=short \
