@@ -286,38 +286,32 @@ pipeline {
         // This catches deployment issues (wrong image, misconfigured env vars,
         // missing secrets) immediately after deploy.
         // ---------------------------------------------------------------------
-        stage("Smoke Test") {
+        stage('Smoke Test') {
             steps {
-                echo "==> Running post-deploy smoke test"
+                sh '''
+                    # Get the NodePort directly via kubectl
+                    NODE_PORT=$(kubectl get svc devops-demo-service \
+                    --namespace=devops-demo \
+                    -o jsonpath='{.spec.ports[0].nodePort}')
 
-                sh """
-                    # Get the NodePort URL from Minikube.
-                    # In a cloud environment, replace this with your LoadBalancer IP.
-                    SERVICE_URL=\$(minikube service devops-demo-service \
-                        --namespace=${K8S_NAMESPACE} \
-                        --url 2>/dev/null || echo "http://localhost:5000")
+                    SERVICE_URL="http://192.168.49.2:${NODE_PORT}"
+                    echo "Testing URL: ${SERVICE_URL}/health"
 
-                    echo "Testing URL: \${SERVICE_URL}/health"
-
-                    # Retry up to 5 times with 5-second delay (app needs a moment to start)
                     for i in 1 2 3 4 5; do
-                        HTTP_CODE=\$(curl --silent --output /dev/null \
-                            --write-out "%{http_code}" \
-                            --max-time 10 \
-                            "\${SERVICE_URL}/health" || echo "000")
-
-                        if [ "\${HTTP_CODE}" = "200" ]; then
-                            echo "Smoke test PASSED (attempt \${i}) – HTTP \${HTTP_CODE}"
+                        HTTP_CODE=$(curl --silent --output /dev/null \
+                        --write-out "%{http_code}" \
+                        --max-time 10 "${SERVICE_URL}/health")
+                        if [ "$HTTP_CODE" = "200" ]; then
+                            echo "Smoke test PASSED – HTTP 200"
                             exit 0
                         fi
-
-                        echo "Attempt \${i}/5 – HTTP \${HTTP_CODE}, retrying in 5s..."
+                        echo "Attempt ${i}/5 – HTTP ${HTTP_CODE}, retrying in 5s..."
                         sleep 5
                     done
 
                     echo "Smoke test FAILED after 5 attempts"
                     exit 1
-                """
+                '''
             }
         }
 
