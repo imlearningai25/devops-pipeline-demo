@@ -116,6 +116,7 @@ pipeline {
                 echo "==> Installing Python dependencies"
 
                 sh """
+                    pwd
                     python -m venv venv
                     source venv/bin/activate
 
