@@ -1,0 +1,16 @@
+# app/requirements.txt
+# ---------------------
+# Runtime dependencies for the Flask microservice.
+# Pin minor versions so builds are reproducible; patch versions are
+# intentionally left flexible to pick up security fixes automatically.
+
+# Web framework – lightweight WSGI app
+flask==3.0.*
+
+# Prometheus instrumentation library for Python
+# Provides Counter, Histogram, generate_latest(), etc.
+prometheus_client==0.20.*
+
+# Production WSGI server – replaces Flask's built-in dev server
+# Dockerfile CMD: gunicorn --workers 2 --bind 0.0.0.0:5000 main:app
+gunicorn==21.2.*

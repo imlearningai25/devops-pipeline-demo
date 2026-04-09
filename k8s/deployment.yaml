@@ -1,0 +1,139 @@
+# k8s/deployment.yaml
+# --------------------
+# Kubernetes Deployment for the devops-demo Flask application.
+#
+# A Deployment tells Kubernetes:
+#   - How many pod replicas to run (spec.replicas)
+#   - What container image to use (spec.template.spec.containers[].image)
+#   - How to update pods without downtime (spec.strategy)
+#   - How much CPU/memory each pod is allowed (resources)
+#   - How to check if a pod is alive/ready (probes)
+#
+# The HPA (hpa.yaml) will dynamically change the replica count between
+# spec.replicas (min) and hpa.spec.maxReplicas based on CPU load.
+#
+# APPLY:
+#   kubectl apply -f k8s/deployment.yaml -n devops-demo
+#   kubectl rollout status deployment/devops-demo-app -n devops-demo
+
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: devops-demo-app           # Must match K8S_DEPLOYMENT in Jenkinsfile
+  namespace: devops-demo
+  labels:
+    app: devops-demo
+    component: flask-api
+    version: "1.0.0"
+
+spec:
+  # ── Replica count ─────────────────────────────────────────────────────────
+  # Start with 2 replicas for basic high availability.
+  # The HPA will scale this up to 5 under load.
+  replicas: 2
+
+  # ── Pod selector ──────────────────────────────────────────────────────────
+  # The Deployment uses this selector to find the pods it manages.
+  # Must match spec.template.metadata.labels below.
+  selector:
+    matchLabels:
+      app: devops-demo
+      component: flask-api
+
+  # ── Update strategy ───────────────────────────────────────────────────────
+  # RollingUpdate: Kubernetes replaces pods gradually, keeping the service
+  # available throughout the update (zero-downtime deployments).
+  #
+  # maxUnavailable: 0  → never go below the desired replica count during update
+  # maxSurge: 1        → allow one extra pod temporarily during the update
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  # ── Pod template ──────────────────────────────────────────────────────────
+  # Every pod created by this Deployment will look like this template.
+  template:
+    metadata:
+      labels:
+        app: devops-demo
+        component: flask-api      # Must match spec.selector.matchLabels
+
+      annotations:
+        # Prometheus auto-discovery: tells Prometheus to scrape this pod
+        prometheus.io/scrape: "true"
+        prometheus.io/port:  "5000"
+        prometheus.io/path:  "/metrics"
+
+    spec:
+      # ── Security context ────────────────────────────────────────────────
+      # Pod-level security: don't allow privilege escalation
+      securityContext:
+        runAsNonRoot: true         # Enforce non-root (matches Dockerfile USER)
+        runAsUser: 1000            # UID for 'appuser' created in Dockerfile
+
+      # ── Containers ──────────────────────────────────────────────────────
+      containers:
+        - name: flask-app           # Must match K8S_CONTAINER in Jenkinsfile
+          # Image is updated by `kubectl set image` in the Jenkinsfile.
+          # Set a real image here for manual deploys or initial setup.
+          image: docker.io/yourdockerhubusername/devops-demo:latest
+          imagePullPolicy: Always   # Always pull – ensures latest tag is fresh
+
+          ports:
+            - containerPort: 5000   # The port Gunicorn binds inside the container
+              name: http
+              protocol: TCP
+
+          # ── Resource management ─────────────────────────────────────────
+          # requests: what the pod is GUARANTEED by the scheduler
+          # limits:   the MAXIMUM the pod can use; exceeding CPU → throttled,
+          #           exceeding memory → OOMKilled (pod restarted)
+          resources:
+            requests:
+              cpu:    "100m"    # 100 millicores = 0.1 CPU core
+              memory: "128Mi"   # 128 mebibytes
+            limits:
+              cpu:    "200m"    # 200 millicores = 0.2 CPU core
+              memory: "256Mi"   # 256 mebibytes
+
+          # ── Liveness probe ──────────────────────────────────────────────
+          # Kubernetes calls this to check if the container is ALIVE.
+          # If it fails consecutively, the container is RESTARTED.
+          # Use for detecting deadlocks / frozen processes.
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10   # Wait 10 s before first check (app startup)
+            periodSeconds: 15         # Check every 15 seconds
+            failureThreshold: 3       # Restart after 3 consecutive failures
+            timeoutSeconds: 5         # Each check must respond within 5 s
+
+          # ── Readiness probe ─────────────────────────────────────────────
+          # Kubernetes calls this to check if the container is READY for traffic.
+          # If it fails, the pod is REMOVED from the Service's endpoint list
+          # (no traffic is sent to it) but the pod is NOT restarted.
+          # Use for detecting temporary unavailability (DB connecting, etc.).
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5    # Shorter delay – ready faster than liveness
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 3
+
+          # ── Environment variables ────────────────────────────────────────
+          # Keep app config here rather than baking it into the image.
+          env:
+            - name: FLASK_ENV
+              value: "production"
+            - name: PYTHONUNBUFFERED
+              value: "1"        # Ensures Python stdout is not buffered (better logs)
+
+      # ── Graceful termination ────────────────────────────────────────────
+      # Give pods 30 s to finish in-flight requests before being force-killed
+      terminationGracePeriodSeconds: 30

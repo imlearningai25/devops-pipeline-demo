@@ -1,0 +1,27 @@
+# k8s/namespace.yaml
+# -------------------
+# Creates the Kubernetes namespace that isolates all devops-demo resources.
+#
+# WHY USE A NAMESPACE?
+#   Namespaces are a lightweight way to partition a cluster. All app resources
+#   (Deployment, Service, HPA) live in this namespace so:
+#     - 'kubectl get all -n devops-demo' shows only our resources
+#     - We can delete the entire demo with: kubectl delete namespace devops-demo
+#     - Resource quotas can be applied per-namespace
+#
+# APPLY:
+#   kubectl apply -f k8s/namespace.yaml
+#   kubectl get namespaces
+
+apiVersion: v1
+kind: Namespace
+
+metadata:
+  # The name referenced in all other manifests (-n devops-demo)
+  name: devops-demo
+
+  labels:
+    # Labels let you select/filter namespaces (useful with network policies)
+    app: devops-demo
+    managed-by: kubectl
+    environment: demo

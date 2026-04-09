@@ -1,0 +1,63 @@
+# k8s/service.yaml
+# -----------------
+# Kubernetes Service for the devops-demo Flask application.
+#
+# WHY DO WE NEED A SERVICE?
+#   Pods have ephemeral IPs that change every time a pod is restarted.
+#   A Service provides a STABLE DNS name and IP address that always routes
+#   traffic to healthy pods matching the selector.
+#
+# SERVICE TYPE: NodePort
+#   For Minikube local development, NodePort is the simplest way to access
+#   the app from your laptop.
+#
+#   Port flow:
+#     Browser → NodePort (30080) → ClusterIP:80 → Pod:5000
+#
+# ACCESS URL (Minikube):
+#   minikube service devops-demo-service -n devops-demo --url
+#   # Outputs something like: http://192.168.49.2:30080
+#
+# FOR PRODUCTION:
+#   Change type: NodePort → type: LoadBalancer (cloud)
+#   or use an Ingress controller for host/path-based routing.
+#
+# APPLY:
+#   kubectl apply -f k8s/service.yaml -n devops-demo
+#   kubectl get service devops-demo-service -n devops-demo
+
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: devops-demo-service      # DNS name inside the cluster: devops-demo-service.devops-demo.svc.cluster.local
+  namespace: devops-demo
+  labels:
+    app: devops-demo
+    component: flask-api
+
+spec:
+  # ── Type ────────────────────────────────────────────────────────────────────
+  type: NodePort
+
+  # ── Selector ────────────────────────────────────────────────────────────────
+  # Routes traffic ONLY to pods that have these labels.
+  # Must match spec.template.metadata.labels in deployment.yaml.
+  selector:
+    app: devops-demo
+    component: flask-api
+
+  # ── Port mapping ────────────────────────────────────────────────────────────
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80            # Port that OTHER services inside the cluster use
+      targetPort: 5000    # Port that the Flask/Gunicorn container listens on
+      nodePort: 30080     # External port on every Minikube node
+                          # Valid range: 30000–32767
+                          # Omit this field to let Kubernetes assign a random port
+
+  # ── Session affinity ────────────────────────────────────────────────────────
+  # None = distribute requests across all pods (round-robin by default)
+  # Use ClientIP if you need sticky sessions (stateful apps)
+  sessionAffinity: None

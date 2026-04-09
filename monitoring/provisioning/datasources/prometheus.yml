@@ -1,0 +1,26 @@
+# monitoring/provisioning/datasources/prometheus.yml
+# ---------------------------------------------------
+# Grafana datasource provisioning file.
+# Grafana reads files in /etc/grafana/provisioning/datasources/ on startup
+# and automatically creates/updates the listed data sources.
+#
+# This means you don't need to manually add Prometheus via the Grafana UI –
+# it's already configured when the container starts.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    # 'uid' must match the datasource uid used in grafana-dashboard.json
+    uid: prometheus
+    access: proxy          # 'proxy' = Grafana backend fetches from Prometheus
+                           # 'direct' = browser fetches directly (not recommended)
+    # 'prometheus' here is the Docker Compose service name, which resolves to
+    # the Prometheus container's IP on the monitoring bridge network
+    url: http://prometheus:9090
+    isDefault: true        # Set as the default datasource
+    editable: true         # Allow editing in the UI after provisioning
+    jsonData:
+      httpMethod: POST     # Use POST for /api/v1/query (more reliable with large queries)
+      timeInterval: "15s"  # Should match Prometheus scrape_interval

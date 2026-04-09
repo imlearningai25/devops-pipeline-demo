@@ -1,0 +1,79 @@
+# k8s/hpa.yaml
+# -------------
+# Horizontal Pod Autoscaler for the devops-demo Flask application.
+#
+# WHAT DOES AN HPA DO?
+#   The HPA watches the Deployment and automatically:
+#     - Scales UP   when CPU usage exceeds the target (60%)
+#     - Scales DOWN when CPU usage drops back below the target
+#
+#   This means during a traffic spike the app handles load without manual
+#   intervention, and during quiet periods it releases resources.
+#
+# PREREQUISITE:
+#   The Minikube metrics-server addon must be enabled:
+#     minikube addons enable metrics-server
+#   (scripts/setup.sh does this automatically)
+#
+# HOW TO WATCH THE HPA SCALE:
+#   kubectl get hpa devops-demo-hpa -n devops-demo --watch
+#
+# SIMULATE LOAD (in another terminal):
+#   kubectl run load-gen --image=busybox --rm -it --restart=Never -n devops-demo -- \
+#     sh -c "while true; do wget -q -O- http://devops-demo-service/; done"
+#
+# APPLY:
+#   kubectl apply -f k8s/hpa.yaml -n devops-demo
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+
+metadata:
+  name: devops-demo-hpa
+  namespace: devops-demo
+  labels:
+    app: devops-demo
+
+spec:
+  # ── Scale target ─────────────────────────────────────────────────────────
+  # The HPA manages the replica count of this Deployment
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: devops-demo-app     # Must match metadata.name in deployment.yaml
+
+  # ── Replica bounds ───────────────────────────────────────────────────────
+  minReplicas: 2    # Never go below 2 (maintains HA even under low load)
+  maxReplicas: 5    # Never exceed 5 (prevents runaway scaling costs)
+
+  # ── Scaling metrics ──────────────────────────────────────────────────────
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          # Scale up when average CPU across all pods exceeds 60% of the
+          # CPU *request* (100m defined in deployment.yaml).
+          # 60% of 100m = 60m CPU → exceeding this triggers scale-up
+          averageUtilization: 60
+
+  # ── Scaling behaviour (optional tuning) ──────────────────────────────────
+  # These defaults are sensible for most workloads; adjust if needed.
+  behavior:
+    scaleUp:
+      # Wait 30 s between scale-up events to avoid rapid flapping
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Pods
+          value: 1          # Add at most 1 pod per scale-up event
+          periodSeconds: 30
+
+    scaleDown:
+      # Wait 3 minutes before scaling down (gives the app time to stabilise)
+      # Helps prevent premature scale-down after a short traffic burst
+      stabilizationWindowSeconds: 180
+      policies:
+        - type: Pods
+          value: 1          # Remove at most 1 pod per scale-down event
+          periodSeconds: 60

@@ -1,0 +1,40 @@
+# .dockerignore
+# -------------
+# Files and directories that should NOT be sent to the Docker build context.
+# A smaller build context = faster builds and no accidental secret leakage.
+
+# Python cache & compiled bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments (never copy these into images)
+.venv/
+venv/
+env/
+
+# Test artefacts
+tests/
+reports/
+.pytest_cache/
+*.xml
+
+# CI/CD files (not needed at runtime)
+Jenkinsfile
+.github/
+
+# Documentation
+README.md
+*.md
+
+# Version control
+.git/
+.gitignore
+
+# Editor / OS noise
+.vscode/
+.idea/
+*.DS_Store
+*.swp

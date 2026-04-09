@@ -1,0 +1,87 @@
+# monitoring/prometheus.yml
+# --------------------------
+# Prometheus configuration file.
+#
+# HOW PROMETHEUS WORKS:
+#   Prometheus is a PULL-based monitoring system. It periodically "scrapes"
+#   (fetches) metrics from target endpoints – in our case, the Flask app's
+#   GET /metrics endpoint which returns data in the Prometheus text format.
+#
+# This config is mounted into the Prometheus container via Docker volume
+# (see docker-compose.monitoring.yml).
+#
+# RELOAD CONFIG WITHOUT RESTART:
+#   curl -X POST http://localhost:9090/-/reload
+
+# ── Global settings ────────────────────────────────────────────────────────
+global:
+  # How frequently Prometheus scrapes all targets by default
+  scrape_interval: 15s
+
+  # How frequently Prometheus evaluates alerting rules
+  evaluation_interval: 15s
+
+  # Labels added to all time-series data scraped by this Prometheus instance.
+  # Useful when aggregating metrics from multiple Prometheus servers.
+  external_labels:
+    monitor: "devops-demo-monitor"
+    environment: "local"
+
+
+# ── Alerting (optional – extend to add Alertmanager) ──────────────────────
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ["alertmanager:9093"]
+
+
+# ── Rule files (optional – for recording rules and alerts) ────────────────
+# rule_files:
+#   - "alert_rules.yml"
+
+
+# ── Scrape configurations ──────────────────────────────────────────────────
+# Each 'job' defines a group of targets to scrape.
+scrape_configs:
+
+  # ── Job 1: Prometheus self-monitoring ─────────────────────────────────────
+  # Prometheus scrapes its OWN metrics so you can monitor the monitor.
+  # Available at: http://localhost:9090/metrics
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          app: "prometheus"
+
+  # ── Job 2: Flask application (via Docker Compose / static IP) ─────────────
+  # Scrapes the Flask app running locally or via Docker Compose.
+  # In Docker Compose, services reference each other by SERVICE NAME,
+  # not localhost. If Flask is running on your laptop: use 'host.docker.internal:5000'.
+  - job_name: "flask-app-local"
+    scrape_interval: 15s       # Override global interval for this job
+    metrics_path: "/metrics"   # The endpoint on the Flask app
+    static_configs:
+      - targets:
+          # When running Flask directly on your laptop (python main.py / gunicorn)
+          - "host.docker.internal:5000"
+        labels:
+          app: "devops-demo"
+          env: "local"
+
+  # ── Job 3: Flask application (via Kubernetes) ─────────────────────────────
+  # If you want Prometheus (running in docker-compose) to scrape the app
+  # deployed in Minikube, use the Minikube NodePort URL.
+  #
+  # Get the URL: minikube service devops-demo-service -n devops-demo --url
+  # Then replace the target below with that URL (e.g. 192.168.49.2:30080).
+  #
+  # Uncomment and update target when using Kubernetes:
+  # - job_name: "flask-app-k8s"
+  #   scrape_interval: 15s
+  #   metrics_path: "/metrics"
+  #   static_configs:
+  #     - targets:
+  #         - "192.168.49.2:30080"   # ← replace with your Minikube NodePort URL
+  #       labels:
+  #         app: "devops-demo"
+  #         env: "kubernetes"
