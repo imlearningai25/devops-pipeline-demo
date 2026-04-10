@@ -252,18 +252,6 @@ pipeline {
             }
         }
 
-        // -----------------------------------
-        // STAGE 6.5: Setup Kuberconfig
-        stage('Setup kubeconfig') {
-            steps {
-                sh '''
-                    # Replace any 127.0.0.1 address with Minikube IP
-                    sed -i 's|https://127.0.0.1:[0-9]*|https://192.168.49.2:8443|g' \
-                    $HOME/.kube/config
-                '''
-            }
-        }
-
         // ---------------------------------------------------------------------
         // STAGE 7: Deploy to Kubernetes
         // Applies all Kubernetes manifests (idempotent – safe to re-run),
