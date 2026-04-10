@@ -119,7 +119,14 @@ pipeline {
 
                     . venv/bin/activate
 
+                    # Upgrade pip first to avoid old-version warnings
+                    pip install --upgrade pip --quiet
 
+                    # Install app dependencies
+                    pip install -r app/requirements.txt --quiet
+
+                    # Install test/lint tooling
+                    pip install pytest flake8 --quiet
 
                     echo "Installed packages:"
                     pip list
