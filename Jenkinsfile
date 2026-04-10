@@ -296,18 +296,17 @@ pipeline {
         stage('Smoke Test') {
             steps {
                 sh '''
-                    # Get the NodePort directly via kubectl
-                    NODE_PORT=$(kubectl get svc devops-demo-service \
-                    --namespace=devops-demo \
-                    -o jsonpath='{.spec.ports[0].nodePort}')
+                    # Get a pod IP directly
+                    POD_IP=$(kubectl get pods -n devops-demo \
+                    -l app=devops-demo-app \
+                    -o jsonpath='{.items[0].status.podIP}')
 
-                    SERVICE_URL="http://192.168.49.2:${NODE_PORT}"
-                    echo "Testing URL: ${SERVICE_URL}/health"
+                    echo "Testing pod at: http://${POD_IP}:5000/health"
 
                     for i in 1 2 3 4 5; do
                         HTTP_CODE=$(curl --silent --output /dev/null \
                         --write-out "%{http_code}" \
-                        --max-time 10 "${SERVICE_URL}/health")
+                        --max-time 10 "http://${POD_IP}:5000/health")
                         if [ "$HTTP_CODE" = "200" ]; then
                             echo "Smoke test PASSED – HTTP 200"
                             exit 0
